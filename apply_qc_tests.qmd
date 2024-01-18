@@ -30,8 +30,6 @@ dt_options1 <- list(
       paging = FALSE,
       searching = TRUE,
       pageLength = 500,
-      #scrollY = "500px",
-     # scrollX = "500px",
       columnDefs = list(list(className = 'dt-center', targets = "_all"))
 )
 
@@ -49,10 +47,7 @@ dt_options2 <- list(
 county <- params$county
 depl_file <- params$depl_file
 
-path_out <- paste(
-  "R:/data_branches/water_quality/processed_data/flagged_data",
-  county, sep = "/"
-)
+path_out <- file.path("R:/data_branches/water_quality/processed_data")
 
 file_name <- sub(".*/", "", depl_file, perl = TRUE)
 
@@ -64,12 +59,15 @@ file_name <- sub(".*/", "", depl_file, perl = TRUE)
 
 dat_raw <- readRDS(depl_file)
 
+station <- unique(dat_raw$station)
+depl_range <- unique(dat_raw$deployment_range)
+
 vars <- dat_raw %>% 
   ss_pivot_longer() %>% 
   distinct(variable)
-vars <- vars$variable
+vars <- sort(vars$variable)
 
-# if sensor depth was not measured, do not run qc_test_depth_crpsscheck
+# if sensor depth was not measured, do not run qc_test_depth_crosscheck
 if("sensor_depth_measured_m" %in% vars) {
   qc_tests = c(
     "grossrange", "climatology", "rolling_sd", "spike", "depth_crosscheck"
@@ -80,28 +78,43 @@ if("sensor_depth_measured_m" %in% vars) {
 
 dat <- dat_raw %>% 
   qc_test_all(qc_tests = qc_tests, join_column_spike = "sensor_type") 
-#colnames(dat) <- str_remove_all(colnames(dat), "value_")
 
-# filter these cols out before exporting???
-# # there are no thresholds for these var-test combinations, so the whole column
-# # will be flagged "Not Evaluated"
-# if("climatology_flag_salinity_psu" %in% colnames(dat)) {
-#   dat <- dat %>% select(-climatology_flag_salinity_psu)
-# }
-# 
-# if("climatology_flag_sensor_depth_measured_m" %in% colnames(dat)) {
-#   dat <- dat %>% select(-climatology_flag_sensor_depth_measured_m)
-# }
+dat_long <- dat %>% 
+  qc_pivot_longer(qc_tests = qc_tests) %>% 
+  select(-c(waterbody, lease, latitude, longitude, string_configuration)) 
+
+qc_summary <- dat_long %>% 
+  qc_summarise_flags() %>% 
+  mutate(
+    county = county, 
+    station = station, 
+    deployment_range = depl_range
+  ) %>% 
+  select(county, station, deployment_range, everything()) %>% 
+  filter(
+    !(qc_test == "climatology" &
+        (variable == "salinity_psu" | variable == "sensor_depth_measured_m"))
+  )
+
+dat_max_flag <- dat %>%  
+  qc_assign_max_flag()
 
 #################################################################
 #### EXPORT ####################################################
-saveRDS(dat, paste(path_out, file_name, sep = "/"))
+
+saveRDS(dat, paste(path_out, "flag_data", county, file_name, sep = "/"))
+
+saveRDS(dat_max_flag, 
+        paste(path_out, "max_flag_data", county, file_name, sep = "/"))
+# 
+# write_csv(qc_summary, 
+#           paste(path_out, "qc_flag_summary/qc_flag_summary.csv", sep = "/"),
+#           append = TRUE)
+
 ###############################################################
 ###############################################################
 
 
-station <- unique(dat$station)
-depl_range <- unique(dat$deployment_range)
 ```
 
 # `r station`: `r depl_range`
@@ -121,11 +134,6 @@ dat %>%
 ## Sensor Details
 
 ```{r}
-
-dat_long <- dat %>% 
-  qc_pivot_longer(qc_tests = qc_tests) %>% 
-  select(-c(waterbody, lease, latitude, longitude, string_configuration)) 
-
 dat_long %>% 
   select(
     variable, 
@@ -137,37 +145,80 @@ dat_long %>%
 ```
 
 
-# QC Summary
+# QC Test Summary
 
 ```{r}
-dat_long %>% 
-  qc_summarise_flags() %>% 
-  # filter(
-  #   
-  # )
+qc_summary %>% 
+  select(-c(county, station, deployment_range)) %>% 
   datatable(options = dt_options2, rownames = FALSE, extensions = 'Buttons')
 ```
 
-# QC Figures
+# QC Test Figures
 
 ```{r} 
 #| message: FALSE
 #| results: asis
 
 if("sensor_depth_measured_m" %in% vars) {
-  
+
   cat('\n## depth_crosscheck \n')
-  
+
   p <- qc_plot_flags(dat_long, qc_tests = "depth_crosscheck")
-  
+
   subchunkify(p$depth_crosscheck, fig_height = 2.75, fig_width = 8.5)
-  
+
   qc_tests <- qc_tests[-which(qc_tests == "depth_crosscheck")]
-  
+
 }
 
 
 for(i in seq_along(vars)){
+
+  var_i <- vars[i]
+
+  cat('\n##', var_i, '\n')
+
+  cat('\n')
+
+  for(j in seq_along(qc_tests)) {
+
+    test_j <- qc_tests[j]
+
+    # climatology test not applied to these variables
+    if(!(test_j == "climatology" &
+         (var_i == "salinity_psu" | var_i == "sensor_depth_measured_m"))) {
+
+      cat('\n###', test_j, '\n')
+
+      # subset data to variable of interest
+      dat_j <- dat_long %>%
+        filter(variable == var_i)
+
+      # height of figure j
+      n_sensor <- length(unique(dat_j$sensor_serial_number))
+
+      if(n_sensor == 1) h = 2.25
+      if(n_sensor > 1) h = 2.25 * n_sensor
+
+      p <- qc_plot_flags(dat_j, qc_tests = test_j)
+
+      subchunkify(p[[1]][[1]], fig_height = h, fig_width = 8.5)
+
+      cat('\n')
+    }
+  }
+}
+
+```
+
+# QC Summary Figures
+
+```{r}
+#| results: asis
+ 
+p <- qc_plot_flags(dat_max_flag, qc_tests = "qc")
+
+for(i in seq_along(vars)) {
   
   var_i <- vars[i]
   
@@ -175,33 +226,15 @@ for(i in seq_along(vars)){
   
   cat('\n')
   
-  for(j in seq_along(qc_tests)) {
-    
-    test_j <- qc_tests[j]
-    
-    # climatology test not applied to these variables
-    if(!(test_j == "climatology" & 
-         (var_i == "salinity_psu" | var_i == "sensor_depth_measured_m"))) {
-      
-      cat('\n###', test_j, '\n')
-      
-      # subset data to variable of interest
-      dat_j <- dat_long %>%
-        filter(variable == var_i) 
-      
-      # height of figure j
-      n_sensor <- length(unique(dat_j$sensor_serial_number))
-      
-      if(n_sensor == 1) h = 2.25
-      if(n_sensor > 1) h = 2.25 * n_sensor
-      
-      p <- qc_plot_flags(dat_j, qc_tests = test_j)
-      
-      subchunkify(p[[1]][[1]], fig_height = h, fig_width = 8.5)
-      
-      cat('\n')
-    }
-  }
+  # height of figure i
+  n_sensor <- length(unique(p[[var_i]]$qc$data$sensor_serial_number))
+  
+  if(n_sensor == 1) h = 2.25
+  if(n_sensor > 1) h = 2.25 * n_sensor
+  
+  subchunkify(p[[var_i]][[1]], fig_height = h, fig_width = 8.5)
+  
+  cat('\n')
 }
 
 ```
