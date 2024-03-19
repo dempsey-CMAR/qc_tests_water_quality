@@ -267,11 +267,36 @@ apply_human_in_loop_flags <- function(dat) {
       ) %>%
       qc_pivot_wider()
 
-   # qc_tests <- c(qc_tests, "human_in_loop")
+  }
 
+
+  if(station == "Sober Island" & depl_range == "2022-Sep-13 to 2023-Nov-14") {
+    # most dissolved oxygen and temperature obs are flagged
+    # temperature sensor failed the post-deployment validation test
+    dat <- dat %>%
+      qc_pivot_longer(qc_tests = qc_tests) %>%
+      mutate(
+        human_in_loop_flag_value = if_else(sensor_serial_number == 670376, 4, 1),
+        human_in_loop_flag_value = ordered(human_in_loop_flag_value, levels = 1:4)
+      ) %>%
+      qc_pivot_wider()
   }
 
 # Guysborough -------------------------------------------------------------
+
+  if(station == "Fishermans Island" & depl_range == "2022-Sep-12 to 2023-Nov-14") {
+    # sub-surface buoy was floating on retrieval
+    dat <- dat %>%
+      qc_pivot_longer(qc_tests = qc_tests) %>%
+      mutate(
+        human_in_loop_flag_value = if_else(
+            #timestamp_utc >= as_datetime("2023-09-17 22:01:34"),
+            timestamp_utc >= as_datetime("2023-08-28"),
+            4, 1),
+        human_in_loop_flag_value = ordered(human_in_loop_flag_value, levels = 1:4)
+      ) %>%
+      qc_pivot_wider()
+  }
 
   if(station == "White Island" & depl_range == "2016-Jun-07 to 2018-Jul-11") {
     # looks like string was exposed
@@ -428,10 +453,10 @@ apply_human_in_loop_flags <- function(dat) {
 
           # upgrade rolling sd flags from 3 to 4
           variable == "temperature_degree_c" &
-             sensor_serial_number == 680158 &
-             timestamp_utc >= as_datetime("2022-06-12 06:18:00") &
-             timestamp_utc <= as_datetime("2022-06-17 11:25:00") &
-             rolling_sd_flag_value == 3,
+            sensor_serial_number == 680158 &
+            timestamp_utc >= as_datetime("2022-06-12 06:18:00") &
+            timestamp_utc <= as_datetime("2022-06-17 11:25:00") &
+            rolling_sd_flag_value == 3,
           4, 1),
         human_in_loop_flag_value = ordered(human_in_loop_flag_value, levels = 1:4)
       ) %>%
@@ -440,17 +465,38 @@ apply_human_in_loop_flags <- function(dat) {
 
 
 
-# Richmond ----------------------------------------------------------------
-  if(station == "Cape Auguet Bay" & depl_range == "2021-Jun-14 to 2022-Jun-02") {
-    # looks like sensor was removed; marked 3 automatically
+  # Richmond ----------------------------------------------------------------
+  if(station == "0667" & depl_range == "2015-Nov-26 to 2016-Sep-01") {
+    # spike at all depths; partially flagged
     dat <- dat %>%
       qc_pivot_longer(qc_tests = qc_tests) %>%
       mutate(
         human_in_loop_flag_value = if_else(
+          between(timestamp_utc,
+                  as_datetime("2016-08-19 13:00:00"),
+                  as_datetime("2016-08-19 18:00:00")),
+          4, 1),
+        human_in_loop_flag_value = ordered(human_in_loop_flag_value, levels = 1:4)
+      ) %>%
+      qc_pivot_wider()
+  }
+
+  if(station == "Cape Auguet Bay" & depl_range == "2021-Jun-14 to 2022-Jun-02") {
+
+    dat <- dat %>%
+      qc_pivot_longer(qc_tests = qc_tests) %>%
+      mutate(
+        # looks like sensor was removed; some values already flagged
+        human_in_loop_flag_value = if_else(
           variable == "temperature_degree_c" &
-            timestamp_utc >= as_datetime("2021-11-03 16:17:00") &
-            timestamp_utc <= as_datetime("2021-11-08 14:55:00"),
-            4, 1),
+            (between(timestamp_utc,
+                     as_datetime("2021-11-03 16:17:00"),
+                     as_datetime("2021-11-08 14:55:00")) |
+
+               between(timestamp_utc,
+                       as_datetime("2022-05-11 12:29:00"),
+                       as_datetime("2022-05-11 13:19:00"))),
+          4, 1),
         human_in_loop_flag_value = ordered(human_in_loop_flag_value, levels = 1:4)
       ) %>%
       qc_pivot_wider()

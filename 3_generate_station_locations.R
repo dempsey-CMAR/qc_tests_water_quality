@@ -1,25 +1,20 @@
-# Decmber 5, 2022
+# March 14, 2024
 
 # This script looks at all of the data submitted to Open Data Portal and:
-## makes a table with the number of observations for each county (useful as a check to make sure Open Data
-### uploaded all data);
+## makes a table with the number of observations for each county
+## (useful as a check to make sure Open Data uploaded all data);
 ## extracts unique stations and coordinates
 
 # As the data submitted increases this will take a long time to run
 
-
 library(dplyr)
 library(sensorstrings)
+#library(purrr)
 library(readr)
 
-library(purrr)
-
-# Paths to data for each county ------------------------------------------------------------
+# Path to Open Data folder ------------------------------------------------------------
 
 path_submission <- "R:/data_branches/water_quality/open_data"
-
-# counties submitted to Open Data
-counties <- "all"
 
 # Import county data ------------------------------------------------------
 
@@ -33,7 +28,7 @@ dat %>%
 # count the number of rows for each county (send to Open Data so they can check)
 n_obs <- dat %>%
   group_by(county) %>%
-  summarize(n_Observations= n())
+  summarize(n_observations= n())
 
 # distinct stations with lat/long to send to Open Data
 stations <- dat %>%
@@ -41,6 +36,9 @@ stations <- dat %>%
   select(county, waterbody, station, latitude, longitude) %>%
   arrange(county, waterbody)
 
+# leaflet(data = stations) %>%
+#   addProviderTiles(providers$CartoDB.Positron) %>%  # basemap
+#   addMarkers(~longitude, ~latitude)
 
 # EXPORT ------------------------------------------------------------------
 

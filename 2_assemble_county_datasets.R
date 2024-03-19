@@ -4,7 +4,7 @@ library(purrr)
 library(qaqcmar)
 library(sensorstrings)
 
-county <- "inverness"
+county <- "guysborough"
 
 path <- file.path("R:/data_branches/water_quality/processed_data/qc_data")
 
@@ -20,7 +20,14 @@ unique(dat$lease)
 rm_cols <- thresholds %>%
   distinct(qc_test, variable) %>%
   mutate(rm_cols = paste(qc_test, "flag", variable, sep = "_"))
-rm_cols <- rm_cols$rm_cols
+rm_cols <- sort(c(
+  rm_cols$rm_cols,
+  "human_in_loop_flag_dissolved_oxygen_percent_saturation",
+  "human_in_loop_flag_dissolved_oxygen_uncorrected_mg_per_l",
+  "human_in_loop_flag_salinity_psu",
+  "human_in_loop_flag_sensor_depth_measured_m",
+  "human_in_loop_flag_temperature_degree_c")
+)
 
 dat %>%
   select(-county, -any_of(rm_cols)) %>%

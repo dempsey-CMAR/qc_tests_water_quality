@@ -5,14 +5,13 @@ library(sensorstrings)
 
 path <- file.path("R:/data_branches/water_quality/processed_data/deployment_data")
 
-county <- "inverness"
+county <- "richmond"
 
 depls <- list.files(
   paste(path, county, sep = "/"),
   pattern = ".rds",
   full.names = TRUE
 )
-
 
 # export html file for each county showing the flagged observations
 sapply(depls, function(x) {
@@ -29,7 +28,7 @@ sapply(depls, function(x) {
 
 
 
-x <- depls[1]
+x <- depls[7]
 quarto_render(
   input = here("1_apply_qc_tests.qmd"),
   output_file = paste0(

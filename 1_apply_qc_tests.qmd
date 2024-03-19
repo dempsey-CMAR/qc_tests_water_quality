@@ -19,12 +19,14 @@ library(dplyr)
 library(DT)
 library(knitr)
 library(here)
+library(lubridate)
 library(qaqcmar)
 library(sensorstrings)
 library(stringr)
 library(tidyr)
 
 source(here("functions/subchunkify.R"))
+source(here("functions/human_in_loop.R"))
 
 dt_options1 <- list(
       dom = 'ft',
@@ -68,7 +70,6 @@ vars <- dat_raw %>%
   distinct(variable)
 vars <- sort(vars$variable)
 
-
 # if sensor depth was not measured, do not run qc_test_depth_crosscheck
 if("sensor_depth_measured_m" %in% vars) {
   qc_tests = c(
@@ -82,10 +83,18 @@ if("sensor_depth_measured_m" %in% vars) {
   join_column_spike <- NULL
 }
 
-# export
+# assign flags - qc tests
 dat <- dat_raw %>% 
-  qc_test_all(qc_tests = qc_tests, join_column_spike = join_column_spike) %>% 
-  qc_assign_max_flag(qc_tests = qc_tests) 
+  qc_test_all(qc_tests = qc_tests, join_column_spike = join_column_spike)  
+dat <- apply_human_in_loop_flags(dat)
+
+if(any(str_detect(colnames(dat), "human_in_loop"))) {
+  qc_tests <- c(qc_tests, "human_in_loop")
+}
+
+# assign max flag
+dat <- dat %>% 
+  qc_assign_max_flag(qc_tests = qc_tests)
 
 qc_tests <- c(qc_tests, "qc")
 
