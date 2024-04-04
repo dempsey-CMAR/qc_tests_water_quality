@@ -360,6 +360,18 @@ apply_human_in_loop_flags <- function(dat) {
       qc_pivot_wider()
   }
 
+  if(station == "The Bull" & depl_range == "2022-Jul-15 to 2023-Oct-18") {
+    # primary buoy was cut and string was retrieved from bottom buoy
+    dat <- dat %>%
+      qc_pivot_longer(qc_tests = qc_tests) %>%
+      mutate(
+        human_in_loop_flag_value = if_else(
+            timestamp_utc >= as_datetime("2023-09-16 04:05:05"), 4, 1),
+        human_in_loop_flag_value = ordered(human_in_loop_flag_value, levels = 1:4)
+      ) %>%
+      qc_pivot_wider()
+  }
+
 # Lunenburg ---------------------------------------------------------------
   if(station == "Flat Island" & depl_range == "2022-Nov-19 to 2023-Jan-10") {
     # string was entangled in lobster gear and then picked up by fisherman

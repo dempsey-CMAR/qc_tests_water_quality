@@ -5,7 +5,7 @@ library(sensorstrings)
 
 path <- file.path("R:/data_branches/water_quality/processed_data/deployment_data")
 
-county <- "richmond"
+county <- "guysborough"
 
 depls <- list.files(
   paste(path, county, sep = "/"),
@@ -28,7 +28,7 @@ sapply(depls, function(x) {
 
 
 
-x <- depls[7]
+x <- depls[108]
 quarto_render(
   input = here("1_apply_qc_tests.qmd"),
   output_file = paste0(
