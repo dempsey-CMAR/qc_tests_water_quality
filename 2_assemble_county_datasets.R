@@ -1,10 +1,13 @@
+#################################
+# Add check for duplicate rows!
+###################################
 
 library(dplyr)
 library(purrr)
 library(qaqcmar)
 library(sensorstrings)
 
-county <- "guysborough"
+county <- "new_brunswick"
 
 path <- file.path("R:/data_branches/water_quality/processed_data/qc_data")
 

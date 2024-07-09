@@ -129,7 +129,7 @@ qc_summary <- dat_long %>%
 saveRDS(dat, paste(path_out, "qc_data", county, file_name, sep = "/"))
 
 fwrite(qc_summary,
-          paste(path_out, "qc_flag_summary/qc_flag_summary.csv", sep = "/"),
+          paste(path_out, "qc_data/qc_flag_summary.csv", sep = "/"),
           append = TRUE)
 
 ###############################################################
